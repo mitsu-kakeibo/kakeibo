@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="家計簿">
 <meta name="theme-color" content="#555555">
 <link rel="apple-touch-icon" href="icon.png">
@@ -1586,7 +1586,7 @@ function fixViewportGap(){
   document.documentElement.style.setProperty('--vfix',v+'px');
  }catch(e){}
 }
-fixViewportGap();window.addEventListener('resize',()=>{fixViewportGap();});
+/* 補正は使わない（ステータスバーを透けさせない設定に変更したため） */
 /* ---------- boot ---------- */
 (()=>{const h=location.hash.slice(1);if(TABS.includes(h))S.tab=h;})();
 render();
