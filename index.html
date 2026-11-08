@@ -135,14 +135,14 @@ main.rep{padding-bottom:calc(var(--navb) + 100px)}
 .dd{display:inline-flex;align-items:center;gap:6px;background:#eee4da;border-radius:999px;padding:5px 14px;font-weight:700;font-size:12.3px;color:#555;position:relative}
 .dd select{position:absolute;inset:0;opacity:0;width:100%}
 .pie-wrap{display:flex;justify-content:center;margin-top:6px}
-.bhead{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;text-align:center;font-weight:700;color:#6b8f9a;font-size:12.3px;padding:2px 4px 8px}
+.bhead{display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;text-align:center;font-weight:700;color:#6b8f9a;font-size:14px;padding:2px 4px 8px}
 .bud{background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:8px}
-.bud .t{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;align-items:center;gap:4px}
-.bud .n{display:flex;align-items:center;gap:6px;font-weight:700;font-size:12.3px;min-width:0}
-.bud .n span:last-child{white-space:normal;line-height:1.2;font-size:11.4px;word-break:break-all}
-.bud .n .ic{font-size:16px}
-.bud .t>div:not(.n){text-align:right;font-size:14.1px;font-weight:600;white-space:nowrap}
-.bud .s{font-size:11.4px;color:#6b8f9a;margin-top:4px}
+.bud .t{display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;align-items:center;gap:4px}
+.bud .n{display:flex;align-items:center;gap:5px;font-weight:700;font-size:14px;min-width:0}
+.bud .n span:last-child{white-space:normal;line-height:1.2;font-size:13.5px}
+.bud .n .ic{font-size:21px}
+.bud .t>div:not(.n){text-align:right;font-size:16.5px;font-weight:600;white-space:nowrap}
+.bud .s{font-size:13px;color:#6b8f9a;margin-top:5px}
 .as-ttl{font-weight:700;color:#6b8f9a;font-size:13.2px;margin:2px 2px 8px}
 .asc{background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:10px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}
 .asc .nm{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;min-width:0}
@@ -337,13 +337,13 @@ main.rep .pager{flex:1;min-height:0;align-items:stretch;margin:0 -10px}
 main.rep .big-left{margin:0}
 main.rep .big-left b{font-size:clamp(24.6px,4.4vh,37px)}
 main.rep .perday{margin-bottom:4px;font-size:11px}
-main.rep .tiles{gap:6px;margin-bottom:8px;flex:none}
-main.rep .tile{padding:3px 10px 4px}
+main.rep .tiles{gap:6px;margin-bottom:6px;flex:none}
+main.rep .tile{padding:2px 10px 3px}
 main.rep .tile .v{font-size:clamp(14.1px,2.4vh,18.5px)}
 main.rep .dd{align-self:flex-start;flex:none}
-.p1 .pie-wrap{flex:1;min-height:150px;margin-top:4px}
+.p1 .pie-wrap{flex:1;min-height:230px;margin-top:2px}
 .p1 .pie-wrap svg{width:100%;height:100%;overflow:visible}
-main.rep .bud{padding:7px 10px;margin-bottom:6px}
+main.rep .bud{padding:11px 12px;margin-bottom:8px}
 main.rep .asc{padding:8px 10px;margin-bottom:6px}
 .rdots{bottom:calc(var(--navb) + 62px)}
 main.rep .bars{height:clamp(110px,20vh,170px)}
@@ -811,15 +811,15 @@ function pieData(items){
 }
 function pieSvg(data){
  const tot=data.reduce((a,d)=>a+d.v,0);if(!tot)return '<div class="empty">この期間の記録はありません</div>';
- const W=340,H=320,cx=170,cy=160,R=120;let a0=-Math.PI/2,paths='',labels='';
+ const W=340,H=340,cx=170,cy=170,R=158;let a0=-Math.PI/2,paths='',labels='';
  data.forEach(d=>{const ang=d.v/tot*Math.PI*2,a1=a0+ang,mid=(a0+a1)/2;
   if(data.length===1)paths+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="${esc(d.color)}"/>`;
   else{const x0=cx+R*Math.cos(a0),y0=cy+R*Math.sin(a0),x1=cx+R*Math.cos(a1),y1=cy+R*Math.sin(a1);
    paths+=`<path d="M${cx},${cy} L${x0.toFixed(1)},${y0.toFixed(1)} A${R},${R} 0 ${ang>Math.PI?1:0} 1 ${x1.toFixed(1)},${y1.toFixed(1)} Z" fill="${esc(d.color)}"/>`;}
-  if(d.v/tot>=0.025){const rr=d.v/tot>=0.08?R*0.66:R*1.12,lx=cx+rr*Math.cos(mid),ly=cy+rr*Math.sin(mid);
-   labels+=`<text x="${lx.toFixed(1)}" y="${(ly-4).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#555">${esc(d.name)}</text><text x="${lx.toFixed(1)}" y="${(ly+13).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="600" fill="#555">${yen(d.v)}</text>`;}
+  if(d.v/tot>=0.025){const rr=d.v/tot>=0.07?R*0.64:R*1.1,lx=cx+rr*Math.cos(mid),ly=cy+rr*Math.sin(mid);
+   labels+=`<text x="${lx.toFixed(1)}" y="${(ly-5).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="700" fill="#444">${esc(d.name)}</text><text x="${lx.toFixed(1)}" y="${(ly+14).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="600" fill="#444">${yen(d.v)}</text>`;}
   a0=a1;});
- return `<div class="pie-wrap"><svg viewBox="-10 -6 ${W+20} ${H+12}" preserveAspectRatio="xMidYMid meet">${paths}${labels}</svg></div>`;
+ return `<div class="pie-wrap"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${paths}${labels}</svg></div>`;
 }
 
 /* ---------- sheets / dialogs ---------- */
