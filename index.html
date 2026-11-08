@@ -244,9 +244,9 @@ nav button.on{color:#fff}
 /* sheets */
 .ov{position:fixed;inset:0;z-index:50;background:rgba(40,30,20,.35);display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .18s}
 .ov.show{opacity:1}
-.sheet{background:var(--bg);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:14px 14px calc(18px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto;transform:translateY(30px);transition:transform .18s}
+.sheet{background:var(--bg);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:14px 14px calc(18px + env(safe-area-inset-bottom));max-height:calc(100dvh - env(safe-area-inset-top, 0px) - 14px);overflow:auto;transform:translateY(30px);transition:transform .18s}
 .ov.show .sheet{transform:none}
-.sheet.full{height:94vh;max-height:94vh;display:flex;flex-direction:column;padding:0}
+.sheet.full{height:calc(100vh - env(safe-area-inset-top, 0px) - 14px);height:calc(100dvh - env(safe-area-inset-top, 0px) - 14px);max-height:none;display:flex;flex-direction:column;padding:0}
 .sheet.center{border-radius:16px;margin:auto 20px;width:auto;max-width:360px;background:#fff}
 .ov.center{align-items:center}
 .sh-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
@@ -360,6 +360,7 @@ main.rep .bud{padding:11px 12px;margin-bottom:8px}
 main.rep .asc{padding:8px 10px;margin-bottom:6px}
 .rdots{bottom:calc(var(--navb) + 62px)}
 main.rep .bars{height:clamp(110px,20vh,170px)}
+.ov .x{position:relative;z-index:2;flex:none}
 </style>
 </head>
 <body>
@@ -956,16 +957,20 @@ function assetFlows(name){
  return rows;
 }
 function openAssetDetail(name){
- const a=assetOf(name);
+ const a=assetOf(name);let tab='out';
+ const kindOf=t=>t.type==='out'?'out':t.type==='in'?'in':'other';
  const draw=()=>{
   const P=repPeriod(),td=todayStr(),all=assetFlows(name);
   const cur=all.filter(r=>r.t.date<=td).reduce((s,r)=>s+r.v,0);
-  const rows=all.filter(r=>r.t.date>=P.start&&r.t.date<=P.end).reverse();
-  let pin=0,pout=0;rows.forEach(r=>{if(r.t.date>td)return;if(r.v>0)pin+=r.v;else pout-=r.v;});
+  const inP=all.filter(r=>r.t.date>=P.start&&r.t.date<=P.end).reverse();
+  const rows=inP.filter(r=>kindOf(r.t)===tab);
+  const cnt=k=>inP.filter(r=>kindOf(r.t)===k).length;
+  let pin=0,pout=0;inP.forEach(r=>{if(r.t.date>td)return;if(r.v>0)pin+=r.v;else pout-=r.v;});
   const s=toD(P.start),e=toD(P.end);
   const groups={};rows.forEach(r=>(groups[r.t.date]=groups[r.t.date]||[]).push(r));
   return `<div class="adsum"><div>今の残高<b style="${cur<0?'color:var(--danger)':''}">${syen(cur)}</b></div><div>この期間の入金<b style="color:var(--in)">${yen(pin)}</b></div><div>この期間の出金<b style="color:var(--out)">${yen(pout)}</b></div></div>
-  <p class="set-txt" style="margin:0 2px 8px">${s.getFullYear()}年${s.getMonth()+1}月${s.getDate()}日〜${e.getMonth()+1}月${e.getDate()}日（${rows.length}件）。期間はレポート下の「先月・翌月」で変えられます。右の小さい数字は、その記録のあとの残高です。</p>
+  <div class="mini-seg" style="width:270px;margin-bottom:8px">${[['out','支出'],['in','収入'],['other','その他']].map(([k,l])=>`<button data-at="${k}" class="${tab===k?'on':''}">${l}<small style="font-size:11px;color:#999"> ${cnt(k)}</small></button>`).join('')}</div>
+  <p class="set-txt" style="margin:0 2px 8px">${s.getFullYear()}年${s.getMonth()+1}月${s.getDate()}日〜${e.getMonth()+1}月${e.getDate()}日。「その他」は振替と資産調整です。右の小さい数字は、その記録のあとの残高です。</p>
   <div style="margin:0 -14px">${rows.length?Object.keys(groups).map(d=>{const dd=toD(d);return `<div class="dband" style="font-size:14px">${dd.getMonth()+1}月${dd.getDate()}日(${WD[dd.getDay()]})${d>td?' <small style="font-weight:400;color:#999">予定</small>':''}</div>`+groups[d].map(({t,v,bal})=>{
    let ic,cn,nm;
    if(t.type==='move'){ic='🔁';cn='振替';nm=(t.from===name?`→ ${t.to||'外部'}`:`← ${t.from||'外部'}`)+(t.fee&&t.from===name?`（手数料${yen(t.fee)}込み）`:'')+(t.name?' '+t.name:'');}
@@ -974,7 +979,8 @@ function openAssetDetail(name){
    return `<div class="adr ${d>td?'fut':''}" data-eid="${esc(t.id)}"><div class="ic">${esc(ic)}</div><div style="min-width:0"><div class="cn">${esc(cn)}</div><div class="nm">${esc(nm)}</div></div><div class="r"><div class="v ${v>0?'p':'m'}">${v>0?'+':'-'}${yen(Math.abs(v))}</div><div class="b">残高 ${syen(bal)}</div></div></div>`;}).join('');}).join(''):'<div class="empty">この期間の記録はありません</div>'}</div>`;
  };
  panel(`${a.icon} ${name}`,draw,(type,e,re)=>{
-  if(type!=='click')return;const r=e.target.closest('[data-eid]');if(!r)return;
+  if(type!=='click')return;const tb=e.target.closest('[data-at]');if(tb){tab=tb.dataset.at;re();return;}
+  const r=e.target.closest('[data-eid]');if(!r)return;
   const ev=openEdit(r.dataset.eid);if(ev)ev.onclose=()=>re();
  });
 }
