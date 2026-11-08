@@ -147,7 +147,20 @@ main.rep{padding-bottom:calc(var(--navb) + 100px)}
 .asc{background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:10px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}
 .asc .nm{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;min-width:0}
 .asc .nm .ic{font-size:20px}
-.asc .nm span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asc .nm span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asc .nm .chev{color:#c0b6ac;font-weight:400;font-size:20px;margin-left:-2px}
+.adr{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 12px;background:#fff;border-bottom:1px solid #eee;cursor:pointer}
+.adr .ic{font-size:20px;text-align:center}
+.adr .cn{font-size:11px;color:#888;font-weight:700}
+.adr .nm{font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.adr .r{text-align:right;white-space:nowrap}
+.adr .v{font-size:16px;font-weight:600}
+.adr .v.p{color:var(--in)} .adr .v.m{color:var(--out)}
+.adr .b{font-size:11px;color:#999}
+.adr.fut{opacity:.55}
+.adsum{display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center;background:#fff;border-radius:12px;padding:10px 6px;margin-bottom:10px}
+.adsum div{font-size:11.5px;color:#888;font-weight:700}
+.adsum b{display:block;font-size:16px;color:var(--text);margin-top:2px}
 .asc .bal{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11px;font-weight:700;color:#666;flex-wrap:wrap}
 .asc .bal b{font-size:19.4px;font-weight:600;color:var(--text)}
 .asc .adj{background:#f3eee8;color:#888;border-radius:999px;padding:3px 10px;font-size:11.4px;font-weight:700}
@@ -730,7 +743,7 @@ const VIEWS={
   /* page3 assets */
   const st=assetStats(end<P.start?P.end:end);
   const p3=`<div class="as-ttl">資産レポート</div>${assetList().map(a=>{const v=st[a.name]||{inc:0,out:0},b=v.inc-v.out;
-   return `<div class="asc"><div><div class="nm"><span class="ic">${esc(a.icon)}</span><span>${esc(a.name)}</span></div><div class="bal">残高 <b>${syen(b)}</b><button class="adj" data-act="adjust" data-n="${esc(a.name)}">調整</button></div></div>
+   return `<div class="asc"><div><div class="nm" data-act="assetDetail" data-n="${esc(a.name)}" style="cursor:pointer"><span class="ic">${esc(a.icon)}</span><span>${esc(a.name)}</span><span class="chev">›</span></div><div class="bal">残高 <b>${syen(b)}</b><button class="adj" data-act="adjust" data-n="${esc(a.name)}">調整</button></div></div>
    <div class="nums"><div>総収入・入金<span class="pi">${yen(v.inc)}</span></div><div>総支出・出金<span class="po">${yen(v.out)}</span></div><div class="d">差し引き<b class="${b<0?'neg':''}">${pyen(b)}</b></div></div></div>`;}).join('')}`;
   /* page4 trend */
   const cols=S.repMode==='year'?[...Array(12)].map((_,i)=>`${S.repYear}-${pad(i+1)}`):[-5,-4,-3,-2,-1,0].map(n=>addMonths(S.repYm,n));
@@ -877,7 +890,7 @@ function openKeypad(target='amount'){
 
 /* edit a record */
 function openEdit(id){
- const t0=findTx(id);if(!t0)return;
+ const t0=findTx(id);if(!t0)return null;
  const t=clone(t0);
  const ov=openSheet('');const sh=$('.sheet',ov);
  const aOpts=(sel,allowNone)=>(allowNone?`<option value="" ${!sel?'selected':''}>（外部）</option>`:'')+assetList().map(a=>`<option value="${esc(a.name)}" ${a.name===sel?'selected':''}>${esc(a.icon+' '+a.name)}</option>`).join('');
@@ -922,10 +935,48 @@ function openEdit(id){
   else if(a==='save'){pull();if(!t.amount){toast('金額を入力してください');return;}if(t.type==='move'&&t.from&&t.from===t.to){toast('出金元と入金先が同じです');return;}removeTx(id);addTxs([t]);ov.close();render();toast('保存しました');}
   else if(a==='del'){if(await ask('この記録を削除しますか？','削除',true)){removeTx(id);ov.close();render();toast('削除しました');}}
  });
+ return ov;
 }
 function pickIcon(onPick){
  const ov=openSheet(`<div class="sh-head"><b>アイコンを選ぶ</b><button class="x" data-x>✕</button></div><div class="emj">${EMOJIS.map(e=>`<button data-em="${e}">${e}</button>`).join('')}</div>`);
  ov.addEventListener('click',e=>{if(e.target.closest('[data-x]'))return ov.close();const b=e.target.closest('[data-em]');if(!b)return;onPick(b.dataset.em);ov.close();});
+}
+function assetFlows(name){
+ const rows=[];
+ for(const ym in S.months)for(const t of S.months[ym]){
+  let v=0;
+  if(t.type==='out'&&t.acct===name)v=-t.amount;
+  else if(t.type==='in'&&t.acct===name)v=t.amount;
+  else if(t.type==='move'){if(t.from===name)v-=t.amount+(t.fee||0);if(t.to===name)v+=t.amount;}
+  else if(t.type==='adj'&&t.acct===name)v=t.amount;
+  if(v)rows.push({t,v});
+ }
+ rows.sort((a,b)=>a.t.date.localeCompare(b.t.date)||(a.t.ts||0)-(b.t.ts||0));
+ let bal=0;for(const r of rows){bal+=r.v;r.bal=bal;}
+ return rows;
+}
+function openAssetDetail(name){
+ const a=assetOf(name);
+ const draw=()=>{
+  const P=repPeriod(),td=todayStr(),all=assetFlows(name);
+  const cur=all.filter(r=>r.t.date<=td).reduce((s,r)=>s+r.v,0);
+  const rows=all.filter(r=>r.t.date>=P.start&&r.t.date<=P.end).reverse();
+  let pin=0,pout=0;rows.forEach(r=>{if(r.t.date>td)return;if(r.v>0)pin+=r.v;else pout-=r.v;});
+  const s=toD(P.start),e=toD(P.end);
+  const groups={};rows.forEach(r=>(groups[r.t.date]=groups[r.t.date]||[]).push(r));
+  return `<div class="adsum"><div>今の残高<b style="${cur<0?'color:var(--danger)':''}">${syen(cur)}</b></div><div>この期間の入金<b style="color:var(--in)">${yen(pin)}</b></div><div>この期間の出金<b style="color:var(--out)">${yen(pout)}</b></div></div>
+  <p class="set-txt" style="margin:0 2px 8px">${s.getFullYear()}年${s.getMonth()+1}月${s.getDate()}日〜${e.getMonth()+1}月${e.getDate()}日（${rows.length}件）。期間はレポート下の「先月・翌月」で変えられます。右の小さい数字は、その記録のあとの残高です。</p>
+  <div style="margin:0 -14px">${rows.length?Object.keys(groups).map(d=>{const dd=toD(d);return `<div class="dband" style="font-size:14px">${dd.getMonth()+1}月${dd.getDate()}日(${WD[dd.getDay()]})${d>td?' <small style="font-weight:400;color:#999">予定</small>':''}</div>`+groups[d].map(({t,v,bal})=>{
+   let ic,cn,nm;
+   if(t.type==='move'){ic='🔁';cn='振替';nm=(t.from===name?`→ ${t.to||'外部'}`:`← ${t.from||'外部'}`)+(t.fee&&t.from===name?`（手数料${yen(t.fee)}込み）`:'')+(t.name?' '+t.name:'');}
+   else if(t.type==='adj'){ic='⚖️';cn='資産調整';nm=t.name||'資産調整';}
+   else{const c=catOf(t.type,t.cat);ic=c.icon;cn=c.name;nm=t.name||c.name;}
+   return `<div class="adr ${d>td?'fut':''}" data-eid="${esc(t.id)}"><div class="ic">${esc(ic)}</div><div style="min-width:0"><div class="cn">${esc(cn)}</div><div class="nm">${esc(nm)}</div></div><div class="r"><div class="v ${v>0?'p':'m'}">${v>0?'+':'-'}${yen(Math.abs(v))}</div><div class="b">残高 ${syen(bal)}</div></div></div>`;}).join('');}).join(''):'<div class="empty">この期間の記録はありません</div>'}</div>`;
+ };
+ panel(`${a.icon} ${name}`,draw,(type,e,re)=>{
+  if(type!=='click')return;const r=e.target.closest('[data-eid]');if(!r)return;
+  const ev=openEdit(r.dataset.eid);if(ev)ev.onclose=()=>re();
+ });
 }
 function openAdjust(name){
  const st=assetStats(todayStr())[name]||{inc:0,out:0},cur=st.inc-st.out;
@@ -1483,6 +1534,7 @@ const ACT={
  rper:el=>{const d=+el.dataset.d;if(S.repMode==='year')S.repYear=String(+S.repYear+d);else S.repYm=addMonths(S.repYm,d);render();},
  rgo:el=>{S.repMode='month';S.repYm=el.dataset.ym;S.repYear=el.dataset.ym.slice(0,4);render();},
  adjust:el=>openAdjust(el.dataset.n),
+ assetDetail:el=>openAssetDetail(el.dataset.n),
  openBudget:()=>openBudget(),openTpls:()=>openTpls(),openCats:()=>openCats(),openAssets:()=>openAssets(),openRules:()=>openRules(),
  cm:el=>{S.calYm=addMonths(S.calYm,+el.dataset.d);render();},
  cd:el=>{S.calSel=el.dataset.d;render();},
