@@ -739,7 +739,7 @@ const VIEWS={
   const bcs=outC.filter(c=>(+S.settings.budgets[c.id]||0)>0||spent[c.id]);
   const p2=`<div class="bhead"><div>カテゴリ</div><div>予算</div><div>支出</div><div>残高</div></div>
    ${bcs.map(c=>{const b=(+S.settings.budgets[c.id]||0)*mul,sp=spent[c.id]||0,r=b-sp;
-    return `<div class="bud"><div class="t"><div class="n"><span class="ic">${esc(c.icon)}</span><span>${esc(c.name)}</span></div><div>${yen(b)}</div><div class="v o">${yen(sp)}</div><div class="v ${r<0?'r':'g'}">${syen(r)}</div></div>${b&&dl?`<div class="s">残り ${dl} 日 1日あたり ${syen(Math.round(r/dl))}</div>`:''}</div>`;}).join('')||'<div class="empty">記録がありません</div>'}
+    return `<div class="bud" data-act="catDetail" data-id="${esc(c.id)}" style="cursor:pointer"><div class="t"><div class="n"><span class="ic">${esc(c.icon)}</span><span>${esc(c.name)}</span><span class="chev" style="color:#c0b6ac;font-weight:400">›</span></div><div>${yen(b)}</div><div class="v o">${yen(sp)}</div><div class="v ${r<0?'r':'g'}">${syen(r)}</div></div>${b&&dl?`<div class="s">残り ${dl} 日 1日あたり ${syen(Math.round(r/dl))}</div>`:''}</div>`;}).join('')||'<div class="empty">記録がありません</div>'}
    <button class="addbtn" data-act="openBudget">予算を設定する</button>`;
   /* page3 assets */
   const st=assetStats(end<P.start?P.end:end);
@@ -981,6 +981,25 @@ function openAssetDetail(name){
  panel(`${a.icon} ${name}`,draw,(type,e,re)=>{
   if(type!=='click')return;const tb=e.target.closest('[data-at]');if(tb){tab=tb.dataset.at;re();return;}
   const r=e.target.closest('[data-eid]');if(!r)return;
+  const ev=openEdit(r.dataset.eid);if(ev)ev.onclose=()=>re();
+ });
+}
+function openCatDetail(id,type='out'){
+ const c=catOf(type,id);
+ const draw=()=>{
+  const P=repPeriod(),td=todayStr(),yr=S.repMode==='year';
+  const items=itemsBetween(P.start,P.end).filter(t=>t.type===type&&t.cat===id).sort((a,b)=>b.date.localeCompare(a.date)||(b.ts||0)-(a.ts||0));
+  const spent=items.filter(t=>t.date<=td).reduce((a,t)=>a+t.amount,0);
+  const bud=(+S.settings.budgets[id]||0)*(yr?12:1),left=bud-spent,dl=daysLeft(P);
+  const s=toD(P.start),e=toD(P.end);
+  const groups={};items.forEach(t=>(groups[t.date]=groups[t.date]||[]).push(t));
+  return `<div class="adsum"><div>予算<b>${yen(bud)}</b></div><div>支出<b style="color:var(--out)">${yen(spent)}</b></div><div>残高<b style="color:${left<0?'var(--danger)':'var(--green)'}">${syen(left)}</b></div></div>
+  <p class="set-txt" style="margin:0 2px 8px">${s.getFullYear()}年${s.getMonth()+1}月${s.getDate()}日〜${e.getMonth()+1}月${e.getDate()}日（${items.length}件）${bud&&dl?`。残り ${dl} 日、1日あたり ${syen(Math.round(left/dl))}`:''}</p>
+  <div style="margin:0 -14px">${items.length?Object.keys(groups).map(d=>{const dd=toD(d);return `<div class="dband" style="font-size:14px">${dd.getMonth()+1}月${dd.getDate()}日(${WD[dd.getDay()]})${d>td?' <small style="font-weight:400;color:#999">予定</small>':''}</div>`+groups[d].map(t=>{const a=t.acct?assetOf(t.acct):null;
+   return `<div class="adr ${d>td?'fut':''}" data-eid="${esc(t.id)}"><div class="ic">${esc(c.icon)}</div><div style="min-width:0"><div class="nm">${esc(t.name||c.name)}</div><div class="cn" style="font-weight:400">${a?esc(a.icon+' '+t.acct):''}${t.memo?'　'+esc(t.memo):''}</div></div><div class="r"><div class="v m">${yen(t.amount)}</div></div></div>`;}).join('');}).join(''):'<div class="empty">この期間の記録はありません</div>'}</div>`;
+ };
+ panel(`${c.icon} ${c.name}`,draw,(type2,e,re)=>{
+  if(type2!=='click')return;const r=e.target.closest('[data-eid]');if(!r)return;
   const ev=openEdit(r.dataset.eid);if(ev)ev.onclose=()=>re();
  });
 }
@@ -1541,6 +1560,7 @@ const ACT={
  rgo:el=>{S.repMode='month';S.repYm=el.dataset.ym;S.repYear=el.dataset.ym.slice(0,4);render();},
  adjust:el=>openAdjust(el.dataset.n),
  assetDetail:el=>openAssetDetail(el.dataset.n),
+ catDetail:el=>openCatDetail(el.dataset.id),
  openBudget:()=>openBudget(),openTpls:()=>openTpls(),openCats:()=>openCats(),openAssets:()=>openAssets(),openRules:()=>openRules(),
  cm:el=>{S.calYm=addMonths(S.calYm,+el.dataset.d);render();},
  cd:el=>{S.calSel=el.dataset.d;render();},
