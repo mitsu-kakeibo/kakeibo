@@ -1050,11 +1050,29 @@ async function checkInbox(){
   try{await ref.delete();}catch(e){}
  }catch(e){}
 }
+/* 日本の祝日（銀行休業日の判定用） */
+const _hol={};
+function jpHolidays(y){
+ if(_hol[y])return _hol[y];
+ const H=new Set(),k=(m,d)=>`${y}-${pad(m)}-${pad(d)}`;
+ const mon=(m,n)=>{const f=new Date(y,m-1,1).getDay();return 1+((8-f)%7)+(n-1)*7;};
+ const spring=Math.floor(20.8431+0.242194*(y-1980)-Math.floor((y-1980)/4));
+ const autumn=Math.floor(23.2488+0.242194*(y-1980)-Math.floor((y-1980)/4));
+ [[1,1],[1,mon(1,2)],[2,11],[2,23],[3,spring],[4,29],[5,3],[5,4],[5,5],[7,mon(7,3)],[8,11],[9,mon(9,3)],[9,autumn],[10,mon(10,2)],[11,3],[11,23]].forEach(([m,d])=>H.add(k(m,d)));
+ const base=[...H].sort();
+ for(const s0 of base){if(toD(s0).getDay()===0){let x=addDays(s0,1);while(H.has(x))x=addDays(x,1);H.add(x);}} // 振替休日
+ for(let d=mon(9,3)+1;d<autumn;d++){if(H.has(k(9,d-1))&&H.has(k(9,d+1)))H.add(k(9,d));} // 国民の休日
+ return (_hol[y]=H);
+}
+function isBizDay(s){const w=toD(s).getDay();if(w===0||w===6)return false;if(['12-31','01-01','01-02','01-03'].includes(s.slice(5)))return false;return !jpHolidays(+s.slice(0,4)).has(s);}
+function shiftBiz(s,dir){let x=s;for(let i=0;i<15&&!isBizDay(x);i++)x=addDays(x,dir);return x;}
+function tplDate(t,ym){const[y,m]=(ym||todayStr().slice(0,7)).split('-').map(Number);const last=new Date(y,m,0).getDate();let d=`${y}-${pad(m)}-${pad(Math.min(t.day,last))}`;if(t.shift)d=shiftBiz(d,t.shift);return d;}
+const SHIFT_LABEL={'0':'','1':'（土日祝は翌営業日）','-1':'（土日祝は前営業日）'};
 function applyTpl(t){
  S.mode=t.type;S.name=t.name||'';S.amount=t.amount||0;
  if(t.type==='move'){if(t.from)S.from=t.from;if(t.to)S.to=t.to;S.fee=t.fee||0;}
  else{S.cat[t.type]=t.cat;if(t.acct)setLastAcct(t.acct);}
- if(t.day){const[y,m]=todayStr().split('-').map(Number);const last=new Date(y,m,0).getDate();S.date=`${y}-${pad(m)}-${pad(Math.min(t.day,last))}`;}
+ if(t.day)S.date=tplDate(t);
  S.page.input=0;
 }
 function openTpls(){
@@ -1068,20 +1086,21 @@ function openTpls(){
   ${items.map(({t,i},k)=>{let ic,cn,nm;if(t.type==='move'){ic='🔁';cn='振替';nm=`${t.from||'外部'} → ${t.to||'外部'}`+(t.name?`<small>${esc(t.name)}</small>`:'');}else{const c=catOf(t.type,t.cat);ic=c.icon;cn=c.name;nm=esc(t.name||c.name)+(t.acct?`<small>${esc(assetOf(t.acct).icon+' '+t.acct)}</small>`:'');}
    return `<div class="r2" data-te="${i}" style="grid-template-columns:40px minmax(0,1fr) minmax(0,1.1fr) auto"><div class="ic">${esc(ic)}</div><div style="min-width:0"><div class="cn">${esc(cn)}</div><div class="am">${t.amount?yen(t.amount):'¥ -'}</div></div><div class="nm">${nm}</div>
    ${sorting?`<div style="display:flex;gap:4px"><button class="sm" data-tm="${i}" data-d="-1" ${k===0?'disabled':''}>↑</button><button class="sm" data-tm="${i}" data-d="1" ${k===items.length-1?'disabled':''}>↓</button></div>`
-   :`<div style="text-align:right"><div class="dt">${t.day?`毎月${t.day}日`:''}</div><button class="sm" data-tu="${i}" style="width:52px;background:var(--head);color:#fff;margin-top:4px">使う</button></div>`}</div>`;}).join('')}</div>
+   :`<div style="text-align:right"><div class="dt">${t.day?`毎月${t.day}日`:''}${t.day&&t.shift?`<br><small>${t.shift>0?'土日祝→翌営業日':'土日祝→前営業日'}</small>`:''}</div><button class="sm" data-tu="${i}" style="width:52px;background:var(--head);color:#fff;margin-top:4px">使う</button></div>`}</div>`;}).join('')}</div>
   ${items.length?'':'<div class="empty">まだありません</div>'}`;};
  const form=()=>{const t=ed;if(t.type!=='move'&&!catsOf(t.type).some(c=>c.id===t.cat))t.cat=catsOf(t.type)[0].id;
   return `<div class="set-ttl">${{out:'支出',in:'収入',move:'振替'}[t.type]}のテンプレート</div>
   <label class="f-lbl">項目名</label><input class="f-in" id="tName" value="${esc(t.name||'')}" placeholder="例：家賃" autocomplete="off">
   <div class="f-row"><div><label class="f-lbl">金額（円）</label><input class="f-in" id="tAmt" inputmode="numeric" value="${t.amount||''}" placeholder="0"></div>
   <div><label class="f-lbl">日付</label><select class="f-in" id="tDay"><option value="0">指定なし</option>${[...Array(31)].map((_,k)=>`<option value="${k+1}" ${t.day===k+1?'selected':''}>毎月${k+1}日</option>`).join('')}</select></div></div>
+  <label class="f-lbl">その日が土日祝のとき</label><select class="f-in" id="tShift"><option value="0" ${!t.shift?'selected':''}>そのままの日付</option><option value="1" ${t.shift===1?'selected':''}>次の平日（翌営業日）にずらす</option><option value="-1" ${t.shift===-1?'selected':''}>前の平日（前営業日）にずらす</option></select>
   ${t.type==='move'?`<div class="f-row"><div><label class="f-lbl">出金元</label><select class="f-in" id="tFrom">${aOpts(t.from,'（外部）')}</select></div><div><label class="f-lbl">入金先</label><select class="f-in" id="tTo">${aOpts(t.to,'（外部）')}</select></div></div>
    <label class="f-lbl">手数料（円）</label><input class="f-in" id="tFee" inputmode="numeric" value="${t.fee||''}" placeholder="0">`
   :`<label class="f-lbl">カテゴリ</label><select class="f-in" id="tCat">${cOpts(t.type,t.cat)}</select>
    <label class="f-lbl">資産</label><select class="f-in" id="tAcct">${aOpts(t.acct,'指定なし（入力時に選ぶ）')}</select>`}
   <div class="foot">${S.settings.templates.some(x=>x.id===t.id)?'<button class="btn danger" data-tdel>削除</button>':''}<button class="btn sub" data-tcancel>戻る</button><button class="btn" data-tsave>保存</button></div>`;};
  const pull=ov=>{const v=id=>{const el=$('#'+id,ov);return el?el.value:null;};
-  ed.name=v('tName').trim();ed.amount=Math.max(0,numIn(v('tAmt')));ed.day=+v('tDay')||0;
+  ed.name=v('tName').trim();ed.amount=Math.max(0,numIn(v('tAmt')));ed.shift=+(v('tShift')||0);ed.day=+v('tDay')||0;
   if(ed.type==='move'){ed.from=v('tFrom')||'';ed.to=v('tTo')||'';ed.fee=Math.max(0,numIn(v('tFee')));}
   else{ed.cat=v('tCat');ed.acct=v('tAcct')||'';}};
  panel('テンプレート',()=>ed?form():list(),async(type,e,re,ov)=>{
